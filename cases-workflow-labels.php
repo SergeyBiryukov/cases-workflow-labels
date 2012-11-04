@@ -5,7 +5,7 @@ Plugin URI: http://wpcases.com/
 Description: Ярлыки для сортировки и обработки дел по стандарту документооборота.
 Author: Sergey Biryukov, Ivan Vinogradov
 Author URI: http://profiles.wordpress.org/sergeybiryukov/
-Version: 0.3.2
+Version: 0.3.3
 */ 
 
 function cwl_register_taxonomy() {
@@ -189,10 +189,10 @@ function cwl_hide_prefix_from_term_names( $terms, $taxonomies, $args ) {
 }
 add_filter( 'get_terms', 'cwl_hide_prefix_from_term_names', 10, 3 );
 
-function cwl_remove_from_inbox() {
+function cwl_add_or_remove_from_inbox() {
 	global $post;
 
-	if ( ! isset( $_GET['action'] ) || 'remove-from-inbox' != $_GET['action'] )
+	if ( ! isset( $_GET['action'] ) )
 		return;
 
 	if ( ! is_user_logged_in() || ! is_singular( 'cases' ) )
@@ -200,44 +200,42 @@ function cwl_remove_from_inbox() {
 
 	$person_id = cwl_get_person_id_by_email( wp_get_current_user()->user_email );
 
-	$terms = wp_get_post_terms( $post->ID, 'labels', array( 'fields' => 'names' ) );
-	$terms = array_diff( $terms, array( $person_id . '-Входящие' ) );
+	switch ( $_GET['action'] ) {
+	case 'remove-from-inbox' :
+		$terms = wp_get_post_terms( $post->ID, 'labels', array( 'fields' => 'names' ) );
+		$terms = array_diff( $terms, array( $person_id . '-Входящие' ) );
 
-	wp_set_post_terms( $post->ID, $terms, 'labels' );
+		wp_set_post_terms( $post->ID, $terms, 'labels' );
 
-	wp_redirect( get_permalink() );
-	die();
+		wp_redirect( get_permalink() );
+		exit();
+		break;
+	case 'add-to-inbox' :
+		$terms = array( $person_id . '-Входящие' );
+
+		wp_set_post_terms( $post->ID, $terms, 'labels', true );
+
+		wp_redirect( get_permalink() );
+		exit();
+		break;
+	}
 }
-add_action( 'wp', 'cwl_remove_from_inbox' );
+add_action( 'wp', 'cwl_add_or_remove_from_inbox' );
 
-function cwl_echo_remove_from_inbox_link() {
+function cwl_echo_add_or_remove_from_inbox_links() {
 	global $post;
 
 	if ( 'cases' != $post->post_type )
 		return;
 
 	$person_id = cwl_get_person_id_by_email( wp_get_current_user()->user_email );
-	if ( ! has_term( sanitize_title( $person_id . '-Входящие' ), 'labels', $post->ID ) )
-		return;
-
-	$url = add_query_arg( array( 'action' => 'remove-from-inbox' ), get_permalink() );
-
-	echo sprintf( '<a class="btn btn-mini" href="%s">Убрать из Входящих</a>', $url );
-}
-add_action( 'roots_entry_meta_before', 'cwl_echo_remove_from_inbox_link' );
-
-/*
-function cwl_convert_labels() {
-	remove_filter( 'get_terms', 'cwl_hide_prefix_from_term_names', 10, 3 );
-	$terms = get_terms( 'labels', 'hide_empty=0' );
-
-	foreach ( $terms as $key => $term ) {
-		$term->name = str_replace( '_', '-', $term->name );
-		$term->slug = str_replace( '_', '-', $term->slug );
-		wp_update_term( $term->term_id, 'labels', array( 'name' => $term->name, 'slug' => $term->slug ) );
+	if ( has_term( sanitize_title( $person_id . '-Входящие' ), 'labels', $post->ID ) ) {
+		$url = add_query_arg( array( 'action' => 'remove-from-inbox' ), get_permalink() );
+		echo sprintf( '<a class="btn btn-mini" href="%s">Убрать из Входящих</a>', $url );
+	} else {
+		$url = add_query_arg( array( 'action' => 'add-to-inbox' ), get_permalink() );
+		echo sprintf( '<a class="btn btn-mini" href="%s">Добавить во Входящие</a>', $url );
 	}
-
 }
-// add_action( 'init', 'cwl_convert_labels' );
-*/
+add_action( 'roots_entry_meta_before', 'cwl_echo_add_or_remove_from_inbox_links' );
 ?>
