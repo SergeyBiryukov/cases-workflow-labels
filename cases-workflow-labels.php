@@ -5,7 +5,7 @@ Plugin URI: http://wpcases.com/
 Description: Ярлыки для сортировки и обработки дел по стандарту документооборота.
 Author: Sergey Biryukov, Ivan Vinogradov
 Author URI: http://profiles.wordpress.org/sergeybiryukov/
-Version: 0.2
+Version: 0.3
 */ 
 
 function cwl_register_taxonomy() {
@@ -56,4 +56,62 @@ function cwl_add_labels_to_new_cases( $meta_id, $object_id, $meta_key, $meta_val
 }
 add_action( 'added_post_meta', 'cwl_add_labels_to_new_cases', 10, 4 );
 add_action( 'updated_post_meta', 'cwl_add_labels_to_new_cases', 10, 4 );
+
+function cwl_enqueue_scripts() {
+	if ( is_singular( 'persons' ) ) {
+		wp_enqueue_style( 'cases-workflow-labels', plugins_url( 'cases-workflow-labels.css', __FILE__ ), array(), '1.0' );
+		wp_enqueue_script( 'cases-workflow-labels', plugins_url( 'cases-workflow-labels.js', __FILE__ ), array( 'jquery' ), '1.0', true );
+	}
+}
+add_action( 'wp_enqueue_scripts', 'cwl_enqueue_scripts' );
+
+function cwl_add_label_box() {
+?>
+<div id="labels" class="tagsdiv">
+	<div class="jaxtag">
+ 		<div class="ajaxtag hide-if-no-js">
+			<label for="new-tag-labels" class="screen-reader-text">Ярлыки</label>
+			<div class="taghint" style="">Добавить новый ярлык</div>
+			<p><input type="text" value="" autocomplete="off" size="16" class="newtag form-input-tip" name="newtag[labels]" id="new-tag-labels">
+			<input type="button" tabindex="3" value="Добавить" class="button tagadd"></p>
+		</div>
+		<p class="howto">Ярлыки разделяются запятыми</p>
+	</div>
+	<div class="tagchecklist"></div>
+</div>
+<p class="hide-if-no-js"><a id="link-labels" class="tagcloud-link" href="#titlediv">Выбрать из часто используемых ярлыков</a></p>
+<?php
+}
+
+function cwl_get_label_list( $args = '' ) {
+	$defaults = array( 'sep' => ' &middot; ' , 'echo' => true );
+	$args = wp_parse_args( $args, $defaults );
+	extract( $args, EXTR_SKIP );
+
+	$terms = get_terms( 'labels', 'hide_empty=0' );
+	$count = count( $terms );
+	$i = 0;
+	$term_list = '';
+
+	foreach ( (array) $terms as $term ) {
+		$term_link = get_term_link( $term->slug, $term->taxonomy );
+		if ( is_wp_error( $term_link ) )
+			continue;
+
+		$term_list .= sprintf( '<a href="%s" title="%s">%s</a> (%d)',
+			$term_link,
+			sprintf( 'Просмотреть все дела с ярлыком %s', $term->name ),
+			$term->name,
+			$term->count
+		);
+
+		if ( $count != ++$i )
+			$term_list .= $sep;
+	}
+
+	if ( $echo )
+		echo $term_list;
+	else
+		return $term_list;
+}
 ?>
