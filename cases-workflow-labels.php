@@ -5,7 +5,7 @@ Plugin URI: http://wpcases.com/
 Description: Ярлыки для сортировки и обработки дел по стандарту документооборота.
 Author: Sergey Biryukov, Ivan Vinogradov
 Author URI: http://profiles.wordpress.org/sergeybiryukov/
-Version: 0.3
+Version: 0.3.1
 */ 
 
 function cwl_register_taxonomy() {
@@ -33,7 +33,9 @@ function cwl_register_taxonomy() {
 		'show_ui' => true,
 		'update_count_callback' => '_update_post_term_count',
 		'query_var' => true,
-		'rewrite' => array( 'slug' => 'label' ),
+		'rewrite' => array(
+			'slug' => 'label'
+		),
 	) );
 }
 add_action( 'init', 'cwl_register_taxonomy' );
@@ -60,7 +62,11 @@ add_action( 'updated_post_meta', 'cwl_add_labels_to_new_cases', 10, 4 );
 function cwl_enqueue_scripts() {
 	if ( is_singular( 'persons' ) ) {
 		wp_enqueue_style( 'cases-workflow-labels', plugins_url( 'cases-workflow-labels.css', __FILE__ ), array(), '1.0' );
+
 		wp_enqueue_script( 'cases-workflow-labels', plugins_url( 'cases-workflow-labels.js', __FILE__ ), array( 'jquery' ), '1.0', true );
+		wp_localize_script( 'cases-workflow-labels', 'cwlAjax', array(
+			'ajaxurl' => admin_url( 'admin-ajax.php' ),
+		) );
 	}
 }
 add_action( 'wp_enqueue_scripts', 'cwl_enqueue_scripts' );
@@ -75,11 +81,11 @@ function cwl_add_label_box() {
 			<p><input type="text" value="" autocomplete="off" size="16" class="newtag form-input-tip" name="newtag[labels]" id="new-tag-labels">
 			<input type="button" tabindex="3" value="Добавить" class="button tagadd"></p>
 		</div>
-		<p class="howto">Ярлыки разделяются запятыми</p>
+		<!-- <p class="howto">Ярлыки разделяются запятыми</p> -->
 	</div>
 	<div class="tagchecklist"></div>
 </div>
-<p class="hide-if-no-js"><a id="link-labels" class="tagcloud-link" href="#titlediv">Выбрать из часто используемых ярлыков</a></p>
+<!-- <p class="hide-if-no-js"><a id="link-labels" class="tagcloud-link" href="#titlediv">Выбрать из часто используемых ярлыков</a></p> -->
 <?php
 }
 
@@ -114,4 +120,32 @@ function cwl_get_label_list( $args = '' ) {
 	else
 		return $term_list;
 }
+
+function cwl_ajax_create_label() {
+	$tag = wp_insert_term( $_POST['labels'], 'labels' );
+
+	cwl_get_label_list();
+
+	die();
+}
+// add_action( 'wp_ajax_create_label', 'cwl_ajax_create_label' );
+
+function cwl_ajax_add_labels() {
+	// echo 'test';
+	// echo '<pre>'; print_r( $_POST ); echo '</pre>';
+	// die();
+	// echo '<pre>'; print_r( $posts ); echo '</pre>';
+
+	if ( empty( $_POST['posts'] ) ) {
+		wp_insert_term( $_POST['labels'], 'labels' );
+	} else {
+		foreach ( (array) $_POST['posts'] as $post_id )
+			wp_set_object_terms( $post_id, $_POST['labels'], 'labels' );
+	}
+
+	cwl_get_label_list();
+
+	die();
+}
+add_action( 'wp_ajax_add_labels', 'cwl_ajax_add_labels' );
 ?>
