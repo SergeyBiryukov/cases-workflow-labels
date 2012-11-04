@@ -3,7 +3,7 @@ Contributors: SergeyBiryukov, IvanVinogradov
 Tags: cases, workflow, labels
 Requires at least: 3.0
 Tested up to: 3.4
-Stable tag: 0.3.1
+Stable tag: 0.3.2
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -19,6 +19,10 @@ Adds workflow labels to ACM Cases.
 2. Activate the plugin through the 'Plugins' menu in WordPress.
 
 == Changelog ==
+
+= 0.3.2 =
+* Added filtering labels by person
+* Added "Remove from Inbox" button
 
 = 0.3.1 =
 * Added basic functionality to label management box
