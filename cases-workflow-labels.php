@@ -5,7 +5,7 @@ Plugin URI: http://wpcases.com/
 Description: Ярлыки для сортировки и обработки дел по стандарту документооборота.
 Author: Sergey Biryukov, Ivan Vinogradov
 Author URI: http://profiles.wordpress.org/sergeybiryukov/
-Version: 0.4
+Version: 0.5
 */ 
 
 class Cases_Workflow_Labels {
@@ -14,6 +14,7 @@ class Cases_Workflow_Labels {
 	function __construct() {
 		add_action( 'init', array( $this, 'register_taxonomy' ) );
 		add_action( 'init', array( $this, 'set_person_id' ) );
+		add_action( 'widgets_init', array( $this, 'register_widget' ) );
 
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
 
@@ -30,7 +31,7 @@ class Cases_Workflow_Labels {
 		add_filter( 'single_term_title', array( $this, 'filter_single_term_title' ) );
 
 		add_action( 'wp', array( $this, 'add_or_remove_from_inbox' ) );
-		add_action( 'roots_entry_meta_before', array( $this, 'echo_add_or_remove_from_inbox_links' ) );
+		add_action( 'roots_entry_meta_before', array( $this, 'print_case_labels_box' ) );
 	}
 
 	function register_taxonomy() {
@@ -81,13 +82,18 @@ class Cases_Workflow_Labels {
 
 	function enqueue_scripts() {
 		if ( is_singular( 'persons' ) ) {
-			wp_enqueue_style( 'cases-workflow-labels', plugins_url( 'cases-workflow-labels.css', __FILE__ ), array(), '1.0' );
+			wp_enqueue_style( 'cases-workflow-labels', plugins_url( 'includes/cases-workflow-labels.css', __FILE__ ), array(), '1.0' );
 
-			wp_enqueue_script( 'cases-workflow-labels', plugins_url( 'cases-workflow-labels.js', __FILE__ ), array( 'jquery' ), '1.0', true );
+			wp_enqueue_script( 'cases-workflow-labels', plugins_url( 'includes/cases-workflow-labels.js', __FILE__ ), array( 'jquery' ), '1.0', true );
 			wp_localize_script( 'cases-workflow-labels', 'cwlAjax', array(
 				'ajaxurl' => admin_url( 'admin-ajax.php' ),
 			) );
 		}
+	}
+
+	function register_widget() {
+		include( 'includes/widget.php' );
+		register_widget( 'Cases_Workflow_Labels_Widget' );
 	}
 
 	function add_labels_to_new_cases( $meta_id, $object_id, $meta_key, $meta_value ) {
@@ -126,7 +132,7 @@ class Cases_Workflow_Labels {
 	}
 
 	function get_label_list( $args = '' ) {
-		$defaults = array( 'sep' => ' &middot; ' , 'echo' => true );
+		$defaults = array( 'style' => '', 'sep' => ' &middot; ', 'echo' => true );
 		$args = wp_parse_args( $args, $defaults );
 		extract( $args, EXTR_SKIP );
 
@@ -135,11 +141,16 @@ class Cases_Workflow_Labels {
 		$i = 0;
 		$term_list = '';
 
+		if ( 'list' == $style )
+			$term_list .= '<ul>';
+
 		foreach ( (array) $terms as $term ) {
 			$term_link = get_term_link( $term->slug, $term->taxonomy );
 			if ( is_wp_error( $term_link ) )
 				continue;
 
+			if ( 'list' == $style )
+				$term_list .= '<li>';
 			$term_list .= sprintf( '<a href="%s" title="%s">%s</a> (%d)',
 				$term_link,
 				sprintf( 'Просмотреть все дела с ярлыком %s', $term->name ),
@@ -147,9 +158,14 @@ class Cases_Workflow_Labels {
 				$term->count
 			);
 
-			if ( $count != ++$i )
+			if ( 'list' == $style )
+				$term_list .= "</li>\n";
+			elseif ( $count != ++$i )
 				$term_list .= $sep;
 		}
+
+		if ( 'list' == $style )
+			$term_list .= "</ul>\n";
 
 		if ( $echo )
 			echo $term_list;
@@ -305,7 +321,7 @@ class Cases_Workflow_Labels {
 		}
 	}
 
-	function echo_add_or_remove_from_inbox_links() {
+	function print_case_labels_box() {
 		global $post;
 
 		if ( 'cases' != $post->post_type )
@@ -326,6 +342,9 @@ class Cases_Workflow_Labels {
 			$url = add_query_arg( array( 'action' => 'add-to-starred' ), get_permalink() );
 			echo sprintf( '<a class="btn btn-mini" href="%s">Добавить в Избранное</a> ', $url );
 		}
+
+		the_terms( $post->ID, 'labels', 'Ярлыки дела: ' );
+		echo '<br /><br />';
 	}
 
 }
